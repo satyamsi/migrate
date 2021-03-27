@@ -210,7 +210,9 @@ func getMatchingExternalNetworks(objects [][]string, extnets gaia.ExternalNetwor
 			}
 		}
 		if matched {
-			match = append(match, extnet)
+			extnetCopy := extnet.DeepCopy()
+			extnetCopy.AssociatedTags = append(extnetCopy.AssociatedTags, "version=v2")
+			match = append(match, extnetCopy)
 		}
 	}
 	return match
@@ -274,7 +276,7 @@ func expandNetworkRule(rule *gaia.NetworkRule, extnets gaia.ExternalNetworksList
 				o = append(o, object)
 			}
 
-			newRule.Object[i] = append(o, externalNetworkKey)
+			newRule.Object[i] = append(o, externalNetworkKey, "$name="+externalNetwork.Name, "version=v2")
 		}
 
 		newRule.ProtocolPorts = protocolAndPorts
