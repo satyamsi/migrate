@@ -160,7 +160,7 @@ func TestConvertToNetworkRuleSetPolicies(t *testing.T) {
 		wantOutExtNetList gaia.ExternalNetworksList
 	}{
 		{
-			name: "allow unidirectional identity network policy with no matching external networks",
+			name: "allow incoming identity network policy with no matching external networks",
 			args: args{
 				netpol: func() *gaia.NetworkAccessPolicy {
 					netpol := gaia.NewNetworkAccessPolicy()
@@ -178,16 +178,173 @@ func TestConvertToNetworkRuleSetPolicies(t *testing.T) {
 				{
 					Name:      "name",
 					Namespace: "namespace",
-					Subject:   [][]string{{"app=foo"}},
+					Subject:   [][]string{{"app=bar"}}, // For Incoming traffic new subject is same as old object
 					IncomingRules: []*gaia.NetworkRule{
 						{
 							Action: gaia.NetworkRuleActionAllow,
-							Object: [][]string{{"app=bar"}},
+							Object: [][]string{{"app=foo"}}, // For Incoming traffic new object is same as old subject
 						},
 					},
 				},
 			},
 			wantOutExtNetList: gaia.ExternalNetworksList{},
+		},
+		{
+			name: "allow outgoing identity network policy with no matching external networks",
+			args: args{
+				netpol: func() *gaia.NetworkAccessPolicy {
+					netpol := gaia.NewNetworkAccessPolicy()
+					netpol.Name = "name"
+					netpol.Namespace = "namespace"
+					netpol.ApplyPolicyMode = gaia.NetworkAccessPolicyApplyPolicyModeOutgoingTraffic
+					netpol.Action = gaia.NetworkAccessPolicyActionAllow
+					netpol.Subject = [][]string{{"app=foo"}}
+					netpol.Object = [][]string{{"app=bar"}}
+					return netpol
+				}(),
+				extnet: gaia.ExternalNetworksList{},
+			},
+			wantOutNetPolList: gaia.NetworkRuleSetPoliciesList{
+				{
+					Name:      "name",
+					Namespace: "namespace",
+					Subject:   [][]string{{"app=foo"}}, // For Outgoing traffic new subject is same as old subject
+					OutgoingRules: []*gaia.NetworkRule{
+						{
+							Action: gaia.NetworkRuleActionAllow,
+							Object: [][]string{{"app=bar"}}, // For Outgoing traffic new object is same as old object
+						},
+					},
+				},
+			},
+			wantOutExtNetList: gaia.ExternalNetworksList{},
+		},
+		{
+			name: "allow bidirectional identity network policy with no matching external networks",
+			args: args{
+				netpol: func() *gaia.NetworkAccessPolicy {
+					netpol := gaia.NewNetworkAccessPolicy()
+					netpol.Name = "name"
+					netpol.Namespace = "namespace"
+					netpol.ApplyPolicyMode = gaia.NetworkAccessPolicyApplyPolicyModeBidirectional
+					netpol.Action = gaia.NetworkAccessPolicyActionAllow
+					netpol.Subject = [][]string{{"app=foo"}}
+					netpol.Object = [][]string{{"app=bar"}}
+					return netpol
+				}(),
+				extnet: gaia.ExternalNetworksList{},
+			},
+			wantOutNetPolList: gaia.NetworkRuleSetPoliciesList{
+				{
+					Name:      "name",
+					Namespace: "namespace",
+					Subject:   [][]string{{"app=bar"}}, // For Incoming traffic new subject is same as old object
+					IncomingRules: []*gaia.NetworkRule{
+						{
+							Action: gaia.NetworkRuleActionAllow,
+							Object: [][]string{{"app=foo"}}, // For Incoming traffic new object is same as old subject
+						},
+					},
+				},
+				{
+					Name:      "name",
+					Namespace: "namespace",
+					Subject:   [][]string{{"app=foo"}}, // For Outgoing traffic new subject is same as old subject
+					OutgoingRules: []*gaia.NetworkRule{
+						{
+							Action: gaia.NetworkRuleActionAllow,
+							Object: [][]string{{"app=bar"}}, // For Outgoing traffic new object is same as old object
+						},
+					},
+				},
+			},
+			wantOutExtNetList: gaia.ExternalNetworksList{},
+		},
+		{
+			name: "allow incoming ACL network policy with external networks",
+			args: args{
+				netpol: func() *gaia.NetworkAccessPolicy {
+					netpol := gaia.NewNetworkAccessPolicy()
+					netpol.Name = "name"
+					netpol.Namespace = "namespace"
+					netpol.ApplyPolicyMode = gaia.NetworkAccessPolicyApplyPolicyModeIncomingTraffic
+					netpol.Action = gaia.NetworkAccessPolicyActionAllow
+					netpol.Subject = [][]string{{"app=foo"}}
+					netpol.Object = [][]string{{"app=bar"}}
+					return netpol
+				}(),
+				extnet: gaia.ExternalNetworksList{
+					{
+						AssociatedTags: []string{"app=foo"},
+						Entries:        []string{"10.10.10.10/32"},
+						ServicePorts:   []string{"tcp/80"},
+					},
+				},
+			},
+			wantOutNetPolList: gaia.NetworkRuleSetPoliciesList{
+				{
+					Name:      "name",
+					Namespace: "namespace",
+					Subject:   [][]string{{"app=bar"}}, // For Incoming traffic new subject is same as old object
+					IncomingRules: []*gaia.NetworkRule{
+						{
+							Action:        gaia.NetworkRuleActionAllow,
+							Object:        [][]string{{"app=foo"}}, // For Incoming traffic new object is same as old subject
+							ProtocolPorts: []string{"tcp/80"},      // ProtocolPorts are moved here from external networks
+						},
+					},
+				},
+			},
+			wantOutExtNetList: gaia.ExternalNetworksList{
+				{
+					AssociatedTags: []string{"app=foo"},
+					Entries:        []string{"10.10.10.10/32"},
+					ServicePorts:   []string{"tcp/80"},
+				},
+			},
+		},
+		{
+			name: "allow outgoing ACL network policy with external networks",
+			args: args{
+				netpol: func() *gaia.NetworkAccessPolicy {
+					netpol := gaia.NewNetworkAccessPolicy()
+					netpol.Name = "name"
+					netpol.Namespace = "namespace"
+					netpol.ApplyPolicyMode = gaia.NetworkAccessPolicyApplyPolicyModeOutgoingTraffic
+					netpol.Action = gaia.NetworkAccessPolicyActionAllow
+					netpol.Subject = [][]string{{"app=foo"}}
+					netpol.Object = [][]string{{"app=bar"}}
+					return netpol
+				}(),
+				extnet: gaia.ExternalNetworksList{
+					{
+						AssociatedTags: []string{"app=bar"},
+						Entries:        []string{"10.10.10.10/32"},
+						ServicePorts:   []string{"tcp/80"},
+					},
+				},
+			},
+			wantOutNetPolList: gaia.NetworkRuleSetPoliciesList{
+				{
+					Name:      "name",
+					Namespace: "namespace",
+					Subject:   [][]string{{"app=foo"}},
+					OutgoingRules: []*gaia.NetworkRule{
+						{
+							Action:        gaia.NetworkRuleActionAllow,
+							Object:        [][]string{{"app=bar"}},
+							ProtocolPorts: []string{"tcp/80"},
+						},
+					},
+				},
+			},
+			wantOutExtNetList: gaia.ExternalNetworksList{
+				{
+					AssociatedTags: []string{"app=bar"},
+					Entries:        []string{"10.10.10.10/32"},
+					ServicePorts:   []string{"tcp/80"},
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -214,10 +371,48 @@ func TestConvertToNetworkRuleSetPolicies(t *testing.T) {
 					if len(want.OutgoingRules) != len(policy.OutgoingRules) {
 						continue
 					}
+					if !reflect.DeepEqual(want.Subject, policy.Subject) {
+						continue
+					}
+					for _, irule := range policy.IncomingRules {
+						for _, iwant := range want.IncomingRules {
+							if !reflect.DeepEqual(iwant.Object, irule.Object) {
+								continue
+							}
+							if !reflect.DeepEqual(iwant.ProtocolPorts, irule.ProtocolPorts) {
+								continue
+							}
+						}
+					}
+					for _, orule := range policy.OutgoingRules {
+						for _, owant := range want.OutgoingRules {
+							if !reflect.DeepEqual(owant.Object, orule.Object) {
+								continue
+							}
+							if !reflect.DeepEqual(owant.ProtocolPorts, orule.ProtocolPorts) {
+								continue
+							}
+						}
+					}
 					matched = true
 				}
 				if !matched {
-					t.Errorf("ConvertToNetworkRuleSetPolicies() policy = %v not found", *policy)
+					t.Errorf("ConvertToNetworkRuleSetPolicies() policy = %+v not found list: %+v", *policy, *&gotOutNetPolList[0])
+				}
+			}
+			for _, extnet := range gotOutExtNetList {
+				matched := false
+				for _, want := range tt.wantOutExtNetList {
+					if !reflect.DeepEqual(want.AssociatedTags, extnet.AssociatedTags) {
+						continue
+					}
+					if !reflect.DeepEqual(want.ServicePorts, extnet.ServicePorts) {
+						continue
+					}
+					matched = true
+				}
+				if !matched {
+					t.Errorf("ConvertToNetworkRuleSetPolicies() external-network = %+v not found list: %+v", *extnet, *gotOutExtNetList[0])
 				}
 			}
 		})
