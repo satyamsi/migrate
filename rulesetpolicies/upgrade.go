@@ -31,6 +31,15 @@ func ConvertToNetworkRuleSetPolicies(
 	outExtNetList gaia.ExternalNetworksList,
 ) {
 
+	// Detect if external networks have duplicate names
+	dupExtnetChecker := map[string]interface{}{}
+	for _, e := range extnet {
+		if _, ok := dupExtnetChecker[e.Name]; ok {
+			panic("duplicate name: " + e.Name)
+		}
+		dupExtnetChecker[e.Name] = nil
+	}
+
 	outNetPolList = gaia.NetworkRuleSetPoliciesList{}
 	outExtNetList = gaia.ExternalNetworksList{}
 
