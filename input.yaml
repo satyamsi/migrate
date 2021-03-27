@@ -1,0 +1,72 @@
+APIVersion: 0
+data:
+  externalnetworks:
+    - associatedTags:
+        - external-network.name=corporate
+      entries:
+        - 10.0.0.0/8
+      name: corporate
+      servicePorts:
+        - tcp/443
+        - tcp/22
+        - tcp/80
+        - udp/53
+    - associatedTags:
+        - external-network.name=internet
+      entries:
+        - 0.0.0.0/0
+      name: internet
+      propagate: true
+      servicePorts:
+        - 'tcp/8000:9000'
+        - tcp/9100
+        - udp/53
+  networkaccesspolicies:
+    - applyPolicyMode: IncomingTraffic
+      description: >-
+        This demonstrates external-network to a namespace. As this is incoming,
+        it will eventually be converted to incoming policy only.
+      logsEnabled: true
+      name: corporate to tenant-x
+      object:
+        - - $namespace=/comcast/dmz/tenant-x
+      subject:
+        - - $namespace=/comcast/dmz/tenant-x
+          - external-network.name=corporate
+    - description: >-
+        This demonstrates external-network to a namespace. As this is
+        bidirectional, it will eventually be converted to incoming policy only.
+      logsEnabled: true
+      name: internet to tenant-x
+      object:
+        - - $namespace=/comcast/dmz/tenant-x
+      subject:
+        - - $namespace=/comcast/dmz/tenant-x
+          - external-network.name=internet
+    - applyPolicyMode: OutgoingTraffic
+      description: >-
+        This demonstrates namespace to external-network. As this is outgoing, it
+        will eventually be converted to outgoing policy only.
+      logsEnabled: true
+      name: tenant-x to internet
+      object:
+        - - $namespace=/comcast/dmz/tenant-x
+          - external-network.name=internet
+      subject:
+        - - $namespace=/comcast/dmz/tenant-x
+    - description: >-
+        This demonstrates namespace to a namespace. As this is bidirectional, it
+        will eventually be converted to two policies (one for service-a and
+        other for service-b) with incoming and outgoing rule only.
+      logsEnabled: true
+      name: service-a to service-b
+      object:
+        - - $namespace=/comcast/dmz/tenant-x
+          - app=service-b
+      subject:
+        - - $namespace=/comcast/dmz/tenant-x
+          - app=service-a
+identities:
+  - externalnetwork
+  - networkaccesspolicy
+label: Molemeteor Skull
